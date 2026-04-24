@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <title>Smart Home Command Center</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            --accent-color: #00f2fe;
+            --accent-glow: rgba(0, 242, 254, 0.4);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-main: #ffffff;
+            --text-muted: #a0aec0;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-align: center;
+            letter-spacing: 1px;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 50px;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* Glassmorphism Card Design */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Card Hover & Active (ON) States */
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .card.active {
+            border-color: var(--accent-color);
+            box-shadow: 0 10px 40px 0 var(--accent-glow);
+        }
+
+        /* Subtle glowing background for active cards */
+        .card.active::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 60%);
+            opacity: 0.15;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .device-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            z-index: 1;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+            transition: transform 0.3s ease;
+        }
+        
+        .card.active .device-icon {
+            transform: scale(1.1);
+        }
+
+        .device-name {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 25px;
+            z-index: 1;
+            text-align: center;
+        }
+        
+        /* Modern iOS-style Glowing Toggle Switch */
+        .switch-container {
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 64px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: .4s;
+            border-radius: 34px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+            box-shadow: 0 0 15px var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .status {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .status.on {
+            color: var(--accent-color);
+            text-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* Loading Animation */
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        .loading { animation: pulse 1.5s infinite; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Smart Home Console</h1>
+    <p class="subtitle">Control your devices from anywhere</p>
+    
+    <div class="dashboard" id="dashboard">
+        </div>
+
+    <script>
+        // 🛑 PASTE YOUR FIREBASE CONFIG HERE 🛑
+        const firebaseConfig = 
+        {
+            apiKey: "AIzaSyB5eBnZXq4E2XwBnt9kABtVc8eu6Sq5GE0",
+            authDomain: "my-home-487a4.firebaseapp.com",
+            databaseURL: "https://my-home-487a4-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "my-home-487a4",
+            storageBucket: "my-home-487a4.firebasestorage.app",
+            messagingSenderId: "437505165371",
+            appId: "1:437505165371:web:c6c082237cd3917463b41e"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Devices (I upgraded a few emojis for better visuals)
+        const devices = [
+            { id: "LR_Light", name: "Living Room Light", icon: "💡" },
+            { id: "LR_Fan", name: "Living Room Fan", icon: "🌀" },
+            { id: "BR_Light", name: "Bedroom Light", icon: "💡" },
+            { id: "BR_AC", name: "Bedroom AC", icon: "❄️" },
+            { id: "Kit_Light", name: "Kitchen Light", icon: "🍳" },
+            { id: "Kit_Exhaust", name: "Exhaust Fan", icon: "💨" },
+            { id: "Cor_Light", name: "Corridor Light", icon: "🚪" },
+            { id: "Out_Light", name: "Outdoor Light", icon: "🏡" }
+        ];
+
+        const dashboard = document.getElementById('dashboard');
+
+        // Generate UI Cards
+        devices.forEach(device => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = `card-${device.id}`; // Give card an ID for glow effects
+            card.innerHTML = `
+                <div class="device-icon">${device.icon}</div>
+                <div class="device-name">${device.name}</div>
+                <div class="switch-container">
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-${device.id}" onchange="toggleDevice('${device.id}')">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="status loading" id="status-${device.id}">OFF</div>
+                </div>
+            `;
+            dashboard.appendChild(card);
+
+            // Listen for Realtime Database changes
+            database.ref('devices/' + device.id).on('value', (snapshot) => {
+                const state = snapshot.val();
+                const toggle = document.getElementById(`toggle-${device.id}`);
+                const statusText = document.getElementById(`status-${device.id}`);
+                const cardElement = document.getElementById(`card-${device.id}`);
+                
+                // Remove loading animation
+                statusText.classList.remove('loading');
+
+                // Sync toggle switch
+                toggle.checked = state;
+                
+                // Update visuals based on ON/OFF state
+                if (state) {
+                    statusText.innerText = "ON";
+                    statusText.classList.add('on');
+                    cardElement.classList.add('active'); // Adds the neon glow to the card
+                } else {
+                    statusText.innerText = "OFF";
+                    statusText.classList.remove('on');
+                    cardElement.classList.remove('active'); // Removes the glow
+                }
+            });
+        });
+
+        // Toggle Firebase Data
+        function toggleDevice(deviceId) {
+            const toggle = document.getElementById(`toggle-${deviceId}`);
+            const state = toggle.checked;
+            
+            database.ref('devices/' + deviceId).set(state)
+                .catch(error => {
+                    alert("Connection error: " + error.message);
+                    toggle.checked = !state; // Revert UI if it fails
+                });
+        }
+    </script>
+</body>
+</html>
