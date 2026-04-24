@@ -215,12 +215,12 @@
             appId: "1:437505165371:web:c6c082237cd3917463b41e"
         };
 
-        function updateFirebase(deviceId)
+       /* function updateFirebase(deviceId)
         {
             const isChecked = document.getElementById(`toggle-${deviceId}`).checked;
             // This writes to /devices/LR_Light, /devices/LR_Fan, etc.
             database.ref('devices/' + deviceId).set(isChecked);
-        }
+        }*/
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
